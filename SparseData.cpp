@@ -19,6 +19,7 @@ protected:
 public:
 	SparseRow();
 	SparseRow(int r, int c, int val);
+	virtual ~SparseRow();
 	int getRow();
 	int getCol();
 	int getValue();
@@ -42,6 +43,7 @@ protected:
 public:
 	SparseMatrix();
 	SparseMatrix(int n, int m, int cv);
+	virtual ~SparseMatrix();
 	int getRow(int i);
 	int getCol(int i);
 	int getVal(int i);
@@ -55,6 +57,7 @@ public:
 	SparseMatrix* Add(SparseMatrix& M);
 //	void sort();
 	void setNoNSV(int size);
+	void setSparseRow(int pos, int r, int c, int v);
 	void display();
 	void displayMatrix();
 	void readInMatrix();
@@ -71,6 +74,8 @@ SparseRow::SparseRow(int r, int c, int val) {
 	row = r, col = c, value = val;
 }
 
+SparseRow::~SparseRow() {}
+
 /*
  * Default sparse matrix constructor. Sets noRows, noCols to -1, all else to 0.
  */
@@ -86,6 +91,10 @@ SparseMatrix::SparseMatrix() {
 SparseMatrix::SparseMatrix(int n, int m, int cv) {
 	noRows = n, noCols = m, commonValue = cv, noNonSparseValues = 0;
 	myMatrix = new vector<SparseRow>();
+}
+
+SparseMatrix::~SparseMatrix() {
+	delete myMatrix;
 }
 
 /************** SPARSE ROW METHODS ***************/
@@ -275,6 +284,10 @@ void SparseMatrix::sort() {
 
 void SparseMatrix::setNoNSV(int size) {
 	noNonSparseValues = size;
+}
+
+void SparseMatrix::setSparseRow(int pos, int r, int c, int v) {
+	myMatrix->at(pos) = SparseRow(r, c, v);
 }
 
 /*
