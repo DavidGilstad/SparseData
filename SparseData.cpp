@@ -41,7 +41,7 @@ protected:
 	vector<SparseRow>* myMatrix; // sparse matrix containing uncommon elements
 public:
 	SparseMatrix();
-	SparseMatrix(int n, int m, int cv, int noNSV);
+	SparseMatrix(int n, int m, int cv);
 	int getRow(int i);
 	int getCol(int i);
 	int getVal(int i);
@@ -53,7 +53,8 @@ public:
 	SparseMatrix* Transpose();
 	SparseMatrix* Multiply(SparseMatrix& M);
 	SparseMatrix* Add(SparseMatrix& M);
-	void sort();
+//	void sort();
+	void setNoNSV(int size);
 	void display();
 	void displayMatrix();
 	void readInMatrix();
@@ -82,8 +83,8 @@ SparseMatrix::SparseMatrix() {
  * Non-default sparse matrix constructor. Sets all variables to the given
  * parameters (noRows = n, noCols = m).
  */
-SparseMatrix::SparseMatrix(int n, int m, int cv, int noNSV) {
-	noRows = n, noCols = m, commonValue = cv, noNonSparseValues = noNSV;
+SparseMatrix::SparseMatrix(int n, int m, int cv) {
+	noRows = n, noCols = m, commonValue = cv, noNonSparseValues = 0;
 	myMatrix = new vector<SparseRow>();
 }
 
@@ -161,7 +162,7 @@ int SparseMatrix::getVal(int i) {
  * Returns the value at element [r,c], or the common value if [r,c] not found.
  */
 int SparseMatrix::valueOf(int r, int c) {
-	for (int i = 0; i < noNonSparseValues; i++)
+	for (int i = 0; i < myMatrix->size(); i++)
 		if (getRow(i) == r && getCol(i) == c)
 			return getVal(i);
 	return commonValue;
@@ -190,9 +191,11 @@ vector<SparseRow>* SparseMatrix::getMatrix() {
  * and indexes, a.k.a. flipping itself on the diagnol that from [0,0] to [n,n].
  */
 SparseMatrix* SparseMatrix::Transpose() {
-	SparseMatrix* T = new SparseMatrix(noCols, noRows, commonValue, noNonSparseValues);
-	for (int i = 0; i < noNonSparseValues; i++)
+	SparseMatrix* T = new SparseMatrix(noCols, noRows, commonValue);
+	for (int i = 0; i < noNonSparseValues; i++) {
 		T->getMatrix()->push_back(SparseRow(getCol(i), getRow(i), getVal(i)));
+	}
+	setNoNSV(noNonSparseValues);
 	return T;
 }
 
@@ -208,7 +211,7 @@ SparseMatrix* SparseMatrix::Multiply(SparseMatrix& M) {
 		return new SparseMatrix();
 	} // #cols of the first must be equal to #rows of the second matrix
 
-	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0, noRows*M.getCols());
+	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0);
 	int v;
 
 	for (int i = 0; i < noNonSparseValues; i++)
@@ -216,10 +219,10 @@ SparseMatrix* SparseMatrix::Multiply(SparseMatrix& M) {
 		for (int mCol = 0; mCol < M.noCols; mCol++) {
 			v = getVal(i) * M.valueOf(getCol(i), mCol);
 			// if match in M exists, put the product in product matrix P
-			if (!(*P).add(getRow(i), mCol, v) && v != 0)
-				(*P).getMatrix()->push_back(SparseRow(getRow(i), mCol, v));
+			if (!P->add(getRow(i), mCol, v) && v != 0)
+				P->getMatrix()->push_back(SparseRow(getRow(i), mCol, v));
 		}
-	(*P).noNonSparseValues = P->getMatrix()->size();
+	P->setNoNSV(P->getMatrix()->size());
 	return P;
 }
 
@@ -235,17 +238,17 @@ SparseMatrix* SparseMatrix::Add(SparseMatrix& M) {
 		return new SparseMatrix();
 	} // matrices must have equal sizes
 
-	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue, noRows*noCols);
+	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
 
 	// assume all nonspares elements don't have a matching nonsparse value in M
 	for (int i = 0; i < noNonSparseValues; i++)
-		(*S).getMatrix()->push_back(SparseRow(getRow(i), getCol(i), getVal(i) + commonValue));
+		S->getMatrix()->push_back(SparseRow(getRow(i), getCol(i), getVal(i) + commonValue));
 	for (int i = 0; i < M.noNonSparseValues; i++) {
 		// if M has matching nonsparse value, subtract common value added above
-		if (!(*S).add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
-			(*S).getMatrix()->push_back(SparseRow(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue));
+		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
+			S->getMatrix()->push_back(SparseRow(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue));
 	}
-	(*S).noNonSparseValues = S->getMatrix()->size();
+	S->setNoNSV(S->getMatrix()->size());
 	return S;
 }
 
@@ -269,6 +272,10 @@ void SparseMatrix::sort() {
 		}
 }
 */
+
+void SparseMatrix::setNoNSV(int size) {
+	noNonSparseValues = size;
+}
 
 /*
  * Displays the sparse rows in the sparse matrix in order.
@@ -304,6 +311,7 @@ void SparseMatrix::readInMatrix() {
 			if (val != commonValue)
 				myMatrix->push_back(SparseRow(row, col, val));
 		}
+	noNonSparseValues = myMatrix->size();
 }
 
 /*************** MAIN PROGRAM ***************
@@ -312,15 +320,15 @@ void SparseMatrix::readInMatrix() {
  * and displays them in.
  */
 int main() {
-	int n, m, cv, noNSV;
+	int n, m, cv;
 	SparseMatrix* temp;
 
-	cin >> n >> m >> cv >> noNSV;
-	SparseMatrix* firstOne = new SparseMatrix(n, m, cv, noNSV);
+	cin >> n >> m >> cv;
+	SparseMatrix* firstOne = new SparseMatrix(n, m, cv);
 	(*firstOne).readInMatrix();
 	// read in first and second matrix
-	cin >> n >> m >> cv >> noNSV;
-	SparseMatrix* secondOne = new SparseMatrix(n, m, cv, noNSV);
+	cin >> n >> m >> cv;
+	SparseMatrix* secondOne = new SparseMatrix(n, m, cv);
 	(*secondOne).readInMatrix();
 
 	cout << "First one in sparse matrix format" << endl;
@@ -341,6 +349,7 @@ int main() {
 
 	cout << "After Transpose second one in normal format" << endl;
 	temp = (*secondOne).Transpose();
+	temp->display();
 	(*temp).displayMatrix();
 
 	cout << "Multiplication of matrices in sparse matrix form:" << endl;
