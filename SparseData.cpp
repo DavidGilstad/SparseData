@@ -2,6 +2,12 @@
 #include <vector>
 using namespace std;
 
+class ExceptionAdd {};
+
+class ExceptionMultiply {};
+
+class ExceptionCV {};
+
 /*
  * SparseMatrix
  *
@@ -75,10 +81,20 @@ ostream& operator<< (ostream& s, SparseMatrix& M) {
 }
 
 SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
-	if (noCols != M.getRows()) {
+	try {
+		if (noCols != M.getRows())
+			throw ExceptionMultiply();
+		if (commonValue != M.commonValue)
+			throw ExceptionCV();
+	}
+	catch (ExceptionMultiply e1) {
 		cout << "Error: Matrices have invalid size for multiplication." << endl;
 		return new SparseMatrix();
-	} // #cols of the first must be equal to #rows of the second matrix
+	}
+	catch (ExceptionCV e2) {
+		cout << "Error: Matrices must have same common value" << endl;
+		return new SparseMatrix();
+	}
 
 	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0);
 	int v;
@@ -96,10 +112,20 @@ SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
 }
 
 SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
-	if (noRows != M.getRows() || noCols != M.getCols()) {
-		cout << "Error: Matrices have invalid size for addition" << endl;
+	try {
+		if (noCols != M.getCols() && noRows != M.getRows())
+			throw ExceptionAdd();
+		if (commonValue != M.commonValue)
+			throw ExceptionCV();
+	}
+	catch (ExceptionAdd e1) {
+		cout << "Error: Matrices have invalid size for addition." << endl;
 		return new SparseMatrix();
-	} // matrices must have equal sizes
+	}
+	catch (ExceptionCV e2) {
+		cout << "Error: Matrices must have same common value" << endl;
+		return new SparseMatrix();
+	}
 
 	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
 
