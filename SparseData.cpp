@@ -2,10 +2,13 @@
 #include <vector>
 using namespace std;
 
+template <class DT>
 class ExceptionAdd {};
 
+template <class DT>
 class ExceptionMultiply {};
 
+template <class DT>
 class ExceptionCV {};
 
 /*
@@ -83,20 +86,12 @@ ostream& operator<< (ostream& s, SparseMatrix& M) {
  * and indexes, a.k.a. flipping itself on the diagnol that from [0,0] to [n,n].
  */
 SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
-	try {
 		if (noCols != M.getRows())
-			throw ExceptionMultiply();
+			throw ExceptionMultiply<int>();
 		if (commonValue != M.commonValue)
-			throw ExceptionCV();
-	}
-	catch (ExceptionMultiply e1) {
-		cout << "Error: Matrices have invalid size for multiplication." << endl;
-		return new SparseMatrix();
-	}
-	catch (ExceptionCV e2) {
-		cout << "Error: Matrices must have same common value" << endl;
-		return new SparseMatrix();
-	}
+			throw ExceptionCV<int>();
+	
+	
 
 	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0);
 	int v;
@@ -120,20 +115,10 @@ SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
  * Return the product of the multiplication.
  */
 SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
-	try {
 		if (noCols != M.getCols() && noRows != M.getRows())
-			throw ExceptionAdd();
+			throw ExceptionAdd<int>();
 		if (commonValue != M.commonValue)
-			throw ExceptionCV();
-	}
-	catch (ExceptionAdd e1) {
-		cout << "Error: Matrices have invalid size for addition." << endl;
-		return new SparseMatrix();
-	}
-	catch (ExceptionCV e2) {
-		cout << "Error: Matrices must have same common value" << endl;
-		return new SparseMatrix();
-	}
+			throw ExceptionCV<int>();
 
 	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
 
@@ -368,13 +353,30 @@ int main() {
 	temp = !(*secondOne);
 	(*temp).displayMatrix();
 
-	cout << "Multiplication of matrices in sparse matrix form:" << endl;
-	temp = (*secondOne)*(*firstOne);
-	cout << (*temp);
+	try {
+		cout << "Multiplication of matrices in sparse matrix form:" << endl;
+		temp = (*secondOne)*(*firstOne);
+		cout << (*temp);
+	}
+	catch (ExceptionAdd<int> e1) {
+		cout << "Error: Matrices have invalid size for addition." << endl;
+	}
+	catch (ExceptionCV<int> e2) {
+		cout << "Error: Matrices must have same common value" << endl;
+	}
 
-	cout << "Addition of matrices in sparse matrix form:" << endl;
-	temp = (*secondOne)+(*firstOne);
-	cout << (*temp);
+	try {
+		cout << "Addition of matrices in sparse matrix form:" << endl;
+		temp = (*secondOne) + (*firstOne);
+		cout << (*temp);
+	}
+	catch (ExceptionMultiply<int> e1) {
+		cout << "Error: Matrices have invalid size for multiplication." << endl;
+	}
+	catch (ExceptionCV<int> e2) {
+		cout << "Error: Matrices must have same common value" << endl;
+	}
+
 
 	delete firstOne;
 	delete secondOne;
