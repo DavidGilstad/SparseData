@@ -35,6 +35,7 @@ public:
  * the original matrix.
  */
 class SparseMatrix {
+friend ostream& operator<< (ostream& s, const SparseMatrix& M);
 protected:
 	int noRows, noCols;	// #rows and #cols in the original matrix
 	int	noNonSparseValues; // # of uncommon values in the matrix
@@ -61,7 +62,67 @@ public:
 	void display();
 	void displayMatrix();
 	void readInMatrix();
+
+	SparseMatrix* operator*(SparseMatrix& M);
+	SparseMatrix* operator+(SparseMatrix& M);
+	SparseMatrix* operator!();
 };
+
+ostream& operator<< (ostream& s, SparseMatrix& M) {
+	for (int i = 0; i < M.getMatrix()->size(); ++i)
+		s << M.getRow(i) << ", " << M.getCol(i) << ", " << M.getVal(i) << endl;
+	return s;
+}
+
+SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
+	if (noCols != M.getRows()) {
+		cout << "Error: Matrices have invalid size for multiplication." << endl;
+		return new SparseMatrix();
+	} // #cols of the first must be equal to #rows of the second matrix
+
+	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0);
+	int v;
+
+	for (int i = 0; i < noNonSparseValues; i++)
+		// go through each element and try to find multplication match in M
+		for (int mCol = 0; mCol < M.noCols; mCol++) {
+			v = getVal(i) * M.valueOf(getCol(i), mCol);
+			// if match in M exists, put the product in product matrix P
+			if (!P->add(getRow(i), mCol, v) && v != 0)
+				P->getMatrix()->push_back(SparseRow(getRow(i), mCol, v));
+		}
+	P->setNoNSV(P->getMatrix()->size());
+	return P;
+}
+
+SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
+	if (noRows != M.getRows() || noCols != M.getCols()) {
+		cout << "Error: Matrices have invalid size for addition" << endl;
+		return new SparseMatrix();
+	} // matrices must have equal sizes
+
+	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
+
+	// assume all nonsparse elements don't have a matching nonsparse value in M
+	for (int i = 0; i < noNonSparseValues; i++)
+		S->getMatrix()->push_back(SparseRow(getRow(i), getCol(i), getVal(i) + commonValue));
+	for (int i = 0; i < M.noNonSparseValues; i++) {
+		// if M has matching nonsparse value, subtract common value added above
+		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
+			S->getMatrix()->push_back(SparseRow(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue));
+	}
+	S->setNoNSV(S->getMatrix()->size());
+	return S;
+}
+
+SparseMatrix* SparseMatrix::operator!() {
+	SparseMatrix* T = new SparseMatrix(noCols, noRows, commonValue);
+	for (int i = 0; i < noNonSparseValues; i++) {
+		T->getMatrix()->push_back(SparseRow(getCol(i), getRow(i), getVal(i)));
+	}
+	setNoNSV(noNonSparseValues);
+	return T;
+}
 
 /*
  * Default sparse row constructor. Sets row and col to -1, value to 0.
@@ -249,7 +310,7 @@ SparseMatrix* SparseMatrix::Add(SparseMatrix& M) {
 
 	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
 
-	// assume all nonspares elements don't have a matching nonsparse value in M
+	// assume all nonsparse elements don't have a matching nonsparse value in M
 	for (int i = 0; i < noNonSparseValues; i++)
 		S->getMatrix()->push_back(SparseRow(getRow(i), getCol(i), getVal(i) + commonValue));
 	for (int i = 0; i < M.noNonSparseValues; i++) {
@@ -345,36 +406,36 @@ int main() {
 	(*secondOne).readInMatrix();
 
 	cout << "First one in sparse matrix format" << endl;
-	(*firstOne).display();
+	cout << (*firstOne);
 
 	cout << "First one in normal matrix format" << endl;
 	(*firstOne).displayMatrix();
 
 	cout << "Second one in sparse matrix format" << endl;
-	(*secondOne).display();
+	cout << (*secondOne);
 
 	cout << "Second one in normal matrix format" << endl;
 	(*secondOne).displayMatrix();
 
 	cout << "After Transpose first one in normal format" << endl;
-	temp = (*firstOne).Transpose();
+	temp = !(*firstOne);
 	(*temp).displayMatrix();
 
 	cout << "After Transpose second one in normal format" << endl;
-	temp = (*secondOne).Transpose();
-	temp->display();
+	temp = !(*secondOne);
 	(*temp).displayMatrix();
 
 	cout << "Multiplication of matrices in sparse matrix form:" << endl;
-	temp = (*secondOne).Multiply(*firstOne);
-//	(*temp).sort();
-	(*temp).display();
+	temp = (*secondOne)*(*firstOne);
+	cout << (*temp);
 
 	cout << "Addition of matrices in sparse matrix form:" << endl;
-	temp = (*secondOne).Add(*firstOne);
-//	(*temp).sort();
-	(*temp).display();
+	temp = (*secondOne)+(*firstOne);
+	cout << (*temp);
 
 	system("pause");
 	return 0;
 }
+
+// do we need display method
+// what should I do about method that needs commonValue as DT?
