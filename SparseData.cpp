@@ -22,16 +22,18 @@ class ExceptionCV {};
   * This class is a row in sparse matrix form. A row is made up of the row index,
   * column index, and value of an uncommon element in the original matrix.
   */
+template <class DT>
 class SparseRow {
 protected:
-	int row, col, value; // row and column index, and the element's value
+	int row, col;
+	DT value; // row and column index, and the element's value
 public:
 	SparseRow();
-	SparseRow(int r, int c, int val);
+	SparseRow(int r, int c, DT val);
 	virtual ~SparseRow();
 	int getRow();
 	int getCol();
-	int getValue();
+	DT getValue();
 	void add(int val);
 	void display();
 	void set(int r, int c, int val);
@@ -43,27 +45,28 @@ public:
  * sparse matrix is a more simple and efficient way to represent and operate on
  * the original matrix.
  */
+template <class DT>
 class SparseMatrix {
 friend ostream& operator<< (ostream& s, const SparseMatrix& M);
 protected:
 	int noRows, noCols;	// #rows and #cols in the original matrix
 	int	noNonSparseValues; // # of uncommon values in the matrix
-	int	commonValue; // the common value in the original matrix
-	vector<SparseRow>* myMatrix; // sparse matrix containing uncommon elements
+	DT commonValue; // the common value in the original matrix
+	vector<SparseRow<DT> >* myMatrix; // sparse matrix containing uncommon elements
 public:
 	SparseMatrix();
 	SparseMatrix(int n, int m, int cv);
 	virtual ~SparseMatrix();
 	int getRow(int i);
 	int getCol(int i);
-	int getVal(int i);
+	DT getVal(int i);
 	int getCols();
 	int getRows();
-	int valueOf(int r, int c);
-	bool add(int r, int c, int val);
-	vector<SparseRow>* getMatrix();
+	DT valueOf(int r, int c);
+	bool add(int r, int c, DT val);
+	vector<SparseRow<DT> >* getMatrix();
 	void setNoNSV(int size);
-	void setSparseRow(int pos, int r, int c, int v);
+	void setSparseRow(int pos, int r, int c, DT& v);
 	void displayMatrix();
 	void readInMatrix();
 
@@ -75,7 +78,8 @@ public:
 /*
  * Displays the sparse rows in the sparse matrix in order.
  */
-ostream& operator<< (ostream& s, SparseMatrix& M) {
+template <class DT>
+ostream& operator<< (ostream& s, SparseMatrix<DT>& M) {
 	for (int i = 0; i < M.getMatrix()->size(); ++i)
 		s << M.getRow(i) << ", " << M.getCol(i) << ", " << M.getVal(i) << endl;
 	return s;
@@ -85,24 +89,22 @@ ostream& operator<< (ostream& s, SparseMatrix& M) {
  * Returns the transpose matrix. A transpose had inversed row sizes, column sizes,
  * and indexes, a.k.a. flipping itself on the diagnol that from [0,0] to [n,n].
  */
-SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
-		if (noCols != M.getRows())
-			throw ExceptionMultiply<int>();
-		if (commonValue != M.commonValue)
-			throw ExceptionCV<int>();
-	
-	
+template <class DT>
+SparseMatrix<DT>* SparseMatrix<DT>::operator*(SparseMatrix<DT>& M) {
+	if (noCols != M.getRows()) throw ExceptionMultiply<int>();
+	if (commonValue != M.commonValue) throw ExceptionCV<int>();
 
-	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0);
+	SparseMatrix<DT>* P = new SparseMatrix<DT>(noRows, M.getCols(), 0);
 	int v;
-
 	for (int i = 0; i < noNonSparseValues; i++)
 		// go through each element and try to find multplication match in M
 		for (int mCol = 0; mCol < M.noCols; mCol++) {
 			v = getVal(i) * M.valueOf(getCol(i), mCol);
 			// if match in M exists, put the product in product matrix P
-			if (!P->add(getRow(i), mCol, v) && v != 0)
-				P->getMatrix()->push_back(SparseRow(getRow(i), mCol, v));
+			if (!P->add(getRow(i), mCol, v) && v != 0) {
+				SparseRow<DT>* p = new SparseRow<DT>(getRow(i), mCol, v);
+				P->getMatrix()->push_back(*p);
+			}
 		}
 	P->setNoNSV(P->getMatrix()->size());
 	return P;
@@ -114,21 +116,27 @@ SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
  *
  * Return the product of the multiplication.
  */
-SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
+template <class DT>
+SparseMatrix<DT>* SparseMatrix<DT>::operator+(SparseMatrix<DT>& M) {
 		if (noCols != M.getCols() && noRows != M.getRows())
 			throw ExceptionAdd<int>();
 		if (commonValue != M.commonValue)
 			throw ExceptionCV<int>();
 
-	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
+	SparseMatrix<DT>* S = new SparseMatrix<DT>(noRows, noCols, commonValue);
 
 	// assume all nonsparse elements don't have a matching nonsparse value in M
-	for (int i = 0; i < noNonSparseValues; i++)
-		S->getMatrix()->push_back(SparseRow(getRow(i), getCol(i), getVal(i) + commonValue));
+	for (int i = 0; i < noNonSparseValues; i++) {
+		SparseRow<DT>* s = new SparseRow<DT>(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue);
+		S->getMatrix()->push_back(*s);
+	}
 	for (int i = 0; i < M.noNonSparseValues; i++) {
 		// if M has matching nonsparse value, subtract common value added above
 		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
-			S->getMatrix()->push_back(SparseRow(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue));
+		{
+			SparseRow<DT>* s = new SparseRow<DT>(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue);
+			S->getMatrix()->push_back(*s);
+		}
 	}
 	S->setNoNSV(S->getMatrix()->size());
 	return S;
@@ -140,10 +148,12 @@ SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
  *
  * Returns the sum of the matrices.
  */
-SparseMatrix* SparseMatrix::operator!() {
-	SparseMatrix* T = new SparseMatrix(noCols, noRows, commonValue);
+template <class DT>
+SparseMatrix<DT>* SparseMatrix<DT>::operator!() {
+	SparseMatrix<DT>* T = new SparseMatrix<DT>(noCols, noRows, commonValue);
 	for (int i = 0; i < noNonSparseValues; i++) {
-		T->getMatrix()->push_back(SparseRow(getCol(i), getRow(i), getVal(i)));
+		SparseRow<DT>* t = new SparseRow<DT>(getCol(i), getRow(i), getVal(i));
+		T->getMatrix()->push_back(*t);
 	}
 	setNoNSV(noNonSparseValues);
 	return T;
@@ -152,34 +162,40 @@ SparseMatrix* SparseMatrix::operator!() {
 /*
  * Default sparse row constructor. Sets row and col to -1, value to 0.
  */
-SparseRow::SparseRow() {
+template <class DT>
+SparseRow<DT>::SparseRow() {
 	row = -1, col = -1, value = 0;
 }
 
-SparseRow::SparseRow(int r, int c, int val) {
+template <class DT>
+SparseRow<DT>::SparseRow(int r, int c, DT val) {
 	row = r, col = c, value = val;
 }
 
-SparseRow::~SparseRow() {}
+template <class DT>
+SparseRow<DT>::~SparseRow() {}
 
 /*
  * Default sparse matrix constructor. Sets noRows, noCols to -1, all else to 0.
  */
-SparseMatrix::SparseMatrix() {
+template <class DT>
+SparseMatrix<DT>::SparseMatrix() {
 	noRows = -1, noCols = -1, commonValue = 0, noNonSparseValues = 0;
-	myMatrix = new vector<SparseRow>();
+	myMatrix = new vector<SparseRow<DT> >();
 }
 
 /*
  * Non-default sparse matrix constructor. Sets all variables to the given
  * parameters (noRows = n, noCols = m).
  */
-SparseMatrix::SparseMatrix(int n, int m, int cv) {
+template <class DT>
+SparseMatrix<DT>::SparseMatrix(int n, int m, int cv) {
 	noRows = n, noCols = m, commonValue = cv, noNonSparseValues = 0;
-	myMatrix = new vector<SparseRow>();
+	myMatrix = new vector<SparseRow<DT> >();
 }
 
-SparseMatrix::~SparseMatrix() {
+template <class DT>
+SparseMatrix<DT>::~SparseMatrix() {
 	delete myMatrix;
 }
 
@@ -187,42 +203,48 @@ SparseMatrix::~SparseMatrix() {
 /*
  * Returns the row index of the original element.
  */
-int SparseRow::getRow() {
+template <class DT>
+int SparseRow<DT>::getRow() {
 	return row;
 }
 
 /*
  * Returns the column index of the original element.
  */
-int SparseRow::getCol() {
+template <class DT>
+int SparseRow<DT>::getCol() {
 	return col;
 }
 
 /*
  * Returns the value of the element.
  */
-int SparseRow::getValue() {
+template <class DT>
+DT SparseRow<DT>::getValue() {
 	return value;
 }
 
 /*
  * Adds the given value to the elements value.
  */
-void SparseRow::add(int val) {
+template <class DT>
+void SparseRow<DT>::add(int val) {
 	value += val;
 }
 
 /*
  * Prints out the sparse row in the form: row#, col#, value.
  */
-void SparseRow::display() {
+template <class DT>
+void SparseRow<DT>::display() {
 	cout << row << ", " << col << ", " << value << endl;
 }
 
 /*
  * Sets row, col, and value to r, c, and val respectively.
  */
-void SparseRow::set(int r, int c, int val) {
+template <class DT>
+void SparseRow<DT>::set(int r, int c, int val) {
 	row = r, col = c, value = val;
 }
 
@@ -230,33 +252,39 @@ void SparseRow::set(int r, int c, int val) {
 /*
  * Return the number of columns in the matrix.
  */
-int SparseMatrix::getCols() {
+template <class DT>
+int SparseMatrix<DT>::getCols() {
 	return noCols;
 }
 
 /*
  * Return the number of rows in the matrix.
  */
-int SparseMatrix::getRows() {
+template <class DT>
+int SparseMatrix<DT>::getRows() {
 	return noRows;
 }
 
-int SparseMatrix::getCol(int i) {
+template <class DT>
+int SparseMatrix<DT>::getCol(int i) {
 	return myMatrix->at(i).getCol();
 }
 
-int SparseMatrix::getRow(int i) {
+template <class DT>
+int SparseMatrix<DT>::getRow(int i) {
 	return myMatrix->at(i).getRow();
 }
 
-int SparseMatrix::getVal(int i) {
+template <class DT>
+DT SparseMatrix<DT>::getVal(int i) {
 	return myMatrix->at(i).getValue();
 }
 
 /*
  * Returns the value at element [r,c], or the common value if [r,c] not found.
  */
-int SparseMatrix::valueOf(int r, int c) {
+template <class DT>
+DT SparseMatrix<DT>::valueOf(int r, int c) {
 	for (int i = 0; i < myMatrix->size(); i++)
 		if (getRow(i) == r && getCol(i) == c)
 			return getVal(i);
@@ -268,7 +296,8 @@ int SparseMatrix::valueOf(int r, int c) {
  *
  * Returns true if added succesfully, false it the element isn't found.
  */
-bool SparseMatrix::add(int r, int c, int val) {
+template <class DT>
+bool SparseMatrix<DT>::add(int r, int c, DT val) {
 	for (int i = 0; i < (int)(myMatrix->size()); i++)
 		if (getRow(i) == r && getCol(i) == c) {
 			myMatrix->at(i).add(val);
@@ -277,23 +306,27 @@ bool SparseMatrix::add(int r, int c, int val) {
 	return false;
 }
 
-vector<SparseRow>* SparseMatrix::getMatrix() {
+template <class DT>
+vector<SparseRow<DT> >* SparseMatrix<DT>::getMatrix() {
 	return myMatrix;
 }
 
-void SparseMatrix::setNoNSV(int size) {
+template <class DT>
+void SparseMatrix<DT>::setNoNSV(int size) {
 	noNonSparseValues = size;
 }
 
-void SparseMatrix::setSparseRow(int pos, int r, int c, int v) {
-	myMatrix->at(pos) = SparseRow(r, c, v);
+template <class DT>
+void SparseMatrix<DT>::setSparseRow(int pos, int r, int c, DT& v) {
+	myMatrix->at(pos) = SparseRow<DT>(r, c, v);
 }
 
 /*
  * Recreates and prints the original matrix, with a tab between each element, and a
  * new line between each row.
  */
-void SparseMatrix::displayMatrix() {
+template <class DT>
+void SparseMatrix<DT>::displayMatrix() {
 	for (int row = 0; row < noRows; row++) {
 		for (int col = 0; col < noCols; col++) {
 			cout << (*this).valueOf(row, col) << "\t";
@@ -305,13 +338,14 @@ void SparseMatrix::displayMatrix() {
 /*
  * Takes in user input to create the sparse matrix.
  */
-void SparseMatrix::readInMatrix() {
+template <class DT>
+void SparseMatrix<DT>::readInMatrix() {
 	int val;
 	for (int row = 0; row < noRows; ++row)
 		for (int col = 0; col < noCols; ++col) {
 			cin >> val;
 			if (val != commonValue)
-				myMatrix->push_back(SparseRow(row, col, val));
+				myMatrix->push_back(SparseRow<DT>(row, col, val));
 		}
 	noNonSparseValues = myMatrix->size();
 }
@@ -323,21 +357,25 @@ void SparseMatrix::readInMatrix() {
  */
 int main() {
 	int n, m, cv;
-	SparseMatrix* temp;
+	SparseMatrix<int>* temp;
 
+	// read in first matrix
+	cout << "First Matrix:" << endl;
 	cin >> n >> m >> cv;
-	SparseMatrix* firstOne = new SparseMatrix(n, m, cv);
+	SparseMatrix<int>* firstOne = new SparseMatrix<int>(n, m, cv);
 	(*firstOne).readInMatrix();
-	// read in first and second matrix
-	cin >> n >> m >> cv;
-	SparseMatrix* secondOne = new SparseMatrix(n, m, cv);
-	(*secondOne).readInMatrix();
 
 	cout << "First one in sparse matrix format" << endl;
 	cout << (*firstOne);
 
 	cout << "First one in normal matrix format" << endl;
 	(*firstOne).displayMatrix();
+
+	// read in second matrix
+	cout << "Second Matrix" << endl;
+	cin >> n >> m >> cv;
+	SparseMatrix<int>* secondOne = new SparseMatrix<int>(n, m, cv);
+	(*secondOne).readInMatrix();
 
 	cout << "Second one in sparse matrix format" << endl;
 	cout << (*secondOne);
@@ -377,7 +415,6 @@ int main() {
 		cout << "Error: Matrices must have same common value" << endl;
 	}
 
-
 	delete firstOne;
 	delete secondOne;
 	delete temp;
@@ -385,7 +422,3 @@ int main() {
 	system("pause");
 	return 0;
 }
-
-// do we need display method
-// what should I do about method that needs commonValue as DT?
-// do we need to deep delete myMatrix (delete[] doesn't work)?
