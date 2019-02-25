@@ -118,16 +118,18 @@ SparseMatrix<DT>* SparseMatrix<DT>::operator*(SparseMatrix<DT>& M) {
  */
 template <class DT>
 SparseMatrix<DT>* SparseMatrix<DT>::operator+(SparseMatrix<DT>& M) {
-		if (noCols != M.getCols() && noRows != M.getRows())
-			throw ExceptionAdd<int>();
-		if (commonValue != M.commonValue)
-			throw ExceptionCV<int>();
+	if (noCols != M.getCols() && noRows != M.getRows())	throw ExceptionAdd<int>();
+	if (commonValue != M.commonValue) throw ExceptionCV<int>();
 
 	SparseMatrix<DT>* S = new SparseMatrix<DT>(noRows, noCols, commonValue);
-
 	// assume all nonsparse elements don't have a matching nonsparse value in M
 	for (int i = 0; i < noNonSparseValues; i++) {
-		SparseRow<DT>* s = new SparseRow<DT>(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue);
+		SparseRow<DT>* s = new SparseRow<DT>(getRow(i), getCol(i), getVal(i) + commonValue);
+
+		cout << "\n";
+		s->display();
+		cout << endl;
+
 		S->getMatrix()->push_back(*s);
 	}
 	for (int i = 0; i < M.noNonSparseValues; i++) {
@@ -135,7 +137,16 @@ SparseMatrix<DT>* SparseMatrix<DT>::operator+(SparseMatrix<DT>& M) {
 		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
 		{
 			SparseRow<DT>* s = new SparseRow<DT>(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue);
+
+			cout << "\n";
+			s->display();
+			cout << endl;
+
 			S->getMatrix()->push_back(*s);
+		}
+		else {
+			cout << "\n Added " << M.getVal(i) - commonValue << " to element ";
+			S->getMatrix()->at(i).display();
 		}
 	}
 	S->setNoNSV(S->getMatrix()->size());
