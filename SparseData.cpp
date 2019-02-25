@@ -59,13 +59,8 @@ public:
 	int valueOf(int r, int c);
 	bool add(int r, int c, int val);
 	vector<SparseRow>* getMatrix();
-	SparseMatrix* Transpose();
-	SparseMatrix* Multiply(SparseMatrix& M);
-	SparseMatrix* Add(SparseMatrix& M);
-//	void sort();
 	void setNoNSV(int size);
 	void setSparseRow(int pos, int r, int c, int v);
-	void display();
 	void displayMatrix();
 	void readInMatrix();
 
@@ -74,12 +69,19 @@ public:
 	SparseMatrix* operator!();
 };
 
+/*
+ * Displays the sparse rows in the sparse matrix in order.
+ */
 ostream& operator<< (ostream& s, SparseMatrix& M) {
 	for (int i = 0; i < M.getMatrix()->size(); ++i)
 		s << M.getRow(i) << ", " << M.getCol(i) << ", " << M.getVal(i) << endl;
 	return s;
 }
 
+/*
+ * Returns the transpose matrix. A transpose had inversed row sizes, column sizes,
+ * and indexes, a.k.a. flipping itself on the diagnol that from [0,0] to [n,n].
+ */
 SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
 	try {
 		if (noCols != M.getRows())
@@ -111,6 +113,12 @@ SparseMatrix* SparseMatrix::operator*(SparseMatrix& M) {
 	return P;
 }
 
+/*
+ * Sparse matrix multiplication: Multiplies this matrix with M. Assumes #cols is
+ * equal to M's #rows, and common value of both are 0.
+ *
+ * Return the product of the multiplication.
+ */
 SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
 	try {
 		if (noCols != M.getCols() && noRows != M.getRows())
@@ -141,6 +149,12 @@ SparseMatrix* SparseMatrix::operator+(SparseMatrix& M) {
 	return S;
 }
 
+/*
+ * Sparse matrix addition: Add the two matrices. #rows, #cols, and common
+ * value of both must all be equal.
+ *
+ * Returns the sum of the matrices.
+ */
 SparseMatrix* SparseMatrix::operator!() {
 	SparseMatrix* T = new SparseMatrix(noCols, noRows, commonValue);
 	for (int i = 0; i < noNonSparseValues; i++) {
@@ -282,109 +296,12 @@ vector<SparseRow>* SparseMatrix::getMatrix() {
 	return myMatrix;
 }
 
-/*
- * Returns the transpose matrix. A transpose had inversed row sizes, column sizes,
- * and indexes, a.k.a. flipping itself on the diagnol that from [0,0] to [n,n].
- */
-SparseMatrix* SparseMatrix::Transpose() {
-	SparseMatrix* T = new SparseMatrix(noCols, noRows, commonValue);
-	for (int i = 0; i < noNonSparseValues; i++) {
-		T->getMatrix()->push_back(SparseRow(getCol(i), getRow(i), getVal(i)));
-	}
-	setNoNSV(noNonSparseValues);
-	return T;
-}
-
-/*
- * Sparse matrix multiplication: Multiplies this matrix with M. Assumes #cols is
- * equal to M's #rows, and common value of both are 0.
- *
- * Return the product of the multiplication.
- */
-SparseMatrix* SparseMatrix::Multiply(SparseMatrix& M) {
-	if (noCols != M.getRows()) {
-		cout << "Error: Matrices have invalid size for multiplication." << endl;
-		return new SparseMatrix();
-	} // #cols of the first must be equal to #rows of the second matrix
-
-	SparseMatrix* P = new SparseMatrix(noRows, M.getCols(), 0);
-	int v;
-
-	for (int i = 0; i < noNonSparseValues; i++)
-		// go through each element and try to find multplication match in M
-		for (int mCol = 0; mCol < M.noCols; mCol++) {
-			v = getVal(i) * M.valueOf(getCol(i), mCol);
-			// if match in M exists, put the product in product matrix P
-			if (!P->add(getRow(i), mCol, v) && v != 0)
-				P->getMatrix()->push_back(SparseRow(getRow(i), mCol, v));
-		}
-	P->setNoNSV(P->getMatrix()->size());
-	return P;
-}
-
-/*
- * Sparse matrix addition: Add the two matrices. Assumes #rows, #cols, and common
- * value of both are equal.
- *
- * Returns the sum of the matrices.
- */
-SparseMatrix* SparseMatrix::Add(SparseMatrix& M) {
-	if (noRows != M.getRows() || noCols != M.getCols()) {
-		cout << "Error: Matrices have invalid size for addition" << endl;
-		return new SparseMatrix();
-	} // matrices must have equal sizes
-
-	SparseMatrix* S = new SparseMatrix(noRows, noCols, commonValue);
-
-	// assume all nonsparse elements don't have a matching nonsparse value in M
-	for (int i = 0; i < noNonSparseValues; i++)
-		S->getMatrix()->push_back(SparseRow(getRow(i), getCol(i), getVal(i) + commonValue));
-	for (int i = 0; i < M.noNonSparseValues; i++) {
-		// if M has matching nonsparse value, subtract common value added above
-		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
-			S->getMatrix()->push_back(SparseRow(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue));
-	}
-	S->setNoNSV(S->getMatrix()->size());
-	return S;
-}
-
-/*
- * Sorts the sparse matrix lowest to highest using row and then column. Uses
- * insertion sorting.
- */
-/*
-void SparseMatrix::sort() {
-	SparseRow temp;
-	for (int i = 0; i < noNonSparseValues; i++)
-		for (int j = i; j > 0; j--) {
-			int r1 = myMatrix[j].getRow(), c1 = myMatrix[j].getCol(),
-				r2 = myMatrix[j - 1].getRow(), c2 = myMatrix[j - 1].getCol();
-			if (r1 < r2 || r1 == r2 && c1 < c2) {
-				temp = myMatrix[j];
-				myMatrix[j] = myMatrix[j - 1];
-				myMatrix[j - 1] = temp;
-			}
-			else j = 0;
-		}
-}
-*/
-
 void SparseMatrix::setNoNSV(int size) {
 	noNonSparseValues = size;
 }
 
 void SparseMatrix::setSparseRow(int pos, int r, int c, int v) {
 	myMatrix->at(pos) = SparseRow(r, c, v);
-}
-
-/*
- * Displays the sparse rows in the sparse matrix in order.
- *
- * @see SparseRow::display()
- */
-void SparseMatrix::display() {
-	for (int i = 0; i < noNonSparseValues; ++i)
-		myMatrix->at(i).display();
 }
 
 /*
@@ -459,9 +376,14 @@ int main() {
 	temp = (*secondOne)+(*firstOne);
 	cout << (*temp);
 
+	delete firstOne;
+	delete secondOne;
+	delete temp;
+
 	system("pause");
 	return 0;
 }
 
 // do we need display method
 // what should I do about method that needs commonValue as DT?
+// do we need to deep delete myMatrix (delete[] doesn't work)?
