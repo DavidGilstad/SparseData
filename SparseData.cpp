@@ -2,19 +2,28 @@
 #include <vector>
 using namespace std;
 
+/*
+ * In case the matrices don't have the same #rows and #cols.
+ */
 template <class DT>
 class ExceptionAdd {};
 
+/*
+ * In case the #cols of the first matrix doesn't equal the #rows of the second.
+ */
 template <class DT>
 class ExceptionMultiply {};
 
+/*
+ * In case the matrices don't have the same commonValue.
+ */
 template <class DT>
 class ExceptionCV {};
 
 /*
  * SparseMatrix
  *
- *	Created on: January 23, 2019
+ *	Created on: February 23, 2019
  *		Author: David Gilstad
  */
 
@@ -25,8 +34,8 @@ class ExceptionCV {};
 template <class DT>
 class SparseRow {
 protected:
-	int row, col;
-	DT value; // row and column index, and the element's value
+	int row, col; // row and column index
+	DT value; // the element's value
 public:
 	SparseRow();
 	SparseRow(int r, int c, DT val);
@@ -69,7 +78,6 @@ public:
 	void setSparseRow(int pos, int r, int c, DT& v);
 	void displayMatrix();
 	void readInMatrix();
-
 	SparseMatrix* operator*(SparseMatrix& M);
 	SparseMatrix* operator+(SparseMatrix& M);
 	SparseMatrix* operator!();
@@ -86,8 +94,10 @@ ostream& operator<< (ostream& s, SparseMatrix<DT>& M) {
 }
 
 /*
- * Returns the transpose matrix. A transpose had inversed row sizes, column sizes,
- * and indexes, a.k.a. flipping itself on the diagnol that from [0,0] to [n,n].
+ * Sparse matrix multiplication: Multiplies this matrix with M. Assumes #cols is
+ * equal to M's #rows, and common value of both are 0.
+ *
+ * Return the product of the multiplication.
  */
 template <class DT>
 SparseMatrix<DT>* SparseMatrix<DT>::operator*(SparseMatrix<DT>& M) {
@@ -110,12 +120,12 @@ SparseMatrix<DT>* SparseMatrix<DT>::operator*(SparseMatrix<DT>& M) {
 	return P;
 }
 
-/*
- * Sparse matrix multiplication: Multiplies this matrix with M. Assumes #cols is
- * equal to M's #rows, and common value of both are 0.
- *
- * Return the product of the multiplication.
- */
+ /*
+  * Sparse matrix addition: Add the two matrices. #rows, #cols, and common
+  * value of both must all be equal.
+  *
+  * Returns the sum of the matrices.
+  */
 template <class DT>
 SparseMatrix<DT>* SparseMatrix<DT>::operator+(SparseMatrix<DT>& M) {
 	if (noCols != M.getCols() && noRows != M.getRows())	throw ExceptionAdd<int>();
@@ -125,23 +135,12 @@ SparseMatrix<DT>* SparseMatrix<DT>::operator+(SparseMatrix<DT>& M) {
 	// assume all nonsparse elements don't have a matching nonsparse value in M
 	for (int i = 0; i < noNonSparseValues; i++) {
 		SparseRow<DT>* s = new SparseRow<DT>(getRow(i), getCol(i), getVal(i) + commonValue);
-
-		cout << "\n";
-		s->display();
-		cout << endl;
-
 		S->getMatrix()->push_back(*s);
 	}
 	for (int i = 0; i < M.noNonSparseValues; i++) {
 		// if M has matching nonsparse value, subtract common value added above
-		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue))
-		{
+		if (!S->add(M.getRow(i), M.getCol(i), M.getVal(i) - commonValue)) {
 			SparseRow<DT>* s = new SparseRow<DT>(M.getRow(i), M.getCol(i), M.getVal(i) + commonValue);
-
-			cout << "\n";
-			s->display();
-			cout << endl;
-
 			S->getMatrix()->push_back(*s);
 		}
 		else {
@@ -153,12 +152,10 @@ SparseMatrix<DT>* SparseMatrix<DT>::operator+(SparseMatrix<DT>& M) {
 	return S;
 }
 
-/*
- * Sparse matrix addition: Add the two matrices. #rows, #cols, and common
- * value of both must all be equal.
- *
- * Returns the sum of the matrices.
- */
+ /*
+  * Returns the transpose matrix. A transpose has inversed row sizes, column sizes,
+  * and indexes, a.k.a. flipping itself on the diagnol that's from [0,0] to [n,n].
+  */
 template <class DT>
 SparseMatrix<DT>* SparseMatrix<DT>::operator!() {
 	SparseMatrix<DT>* T = new SparseMatrix<DT>(noCols, noRows, commonValue);
@@ -178,11 +175,17 @@ SparseRow<DT>::SparseRow() {
 	row = -1, col = -1, value = 0;
 }
 
+/*
+ * Non-default constructor. Sets row, col and val to the respective arguments.
+ */
 template <class DT>
 SparseRow<DT>::SparseRow(int r, int c, DT val) {
 	row = r, col = c, value = val;
 }
 
+/*
+ * Sparse row destructor.
+ */
 template <class DT>
 SparseRow<DT>::~SparseRow() {}
 
@@ -196,8 +199,8 @@ SparseMatrix<DT>::SparseMatrix() {
 }
 
 /*
- * Non-default sparse matrix constructor. Sets all variables to the given
- * parameters (noRows = n, noCols = m).
+ * Non-default sparse matrix constructor. Sets variables to the given parameters 
+ * (noRows = n, noCols = m), and sets noNonSparseValues to 0.
  */
 template <class DT>
 SparseMatrix<DT>::SparseMatrix(int n, int m, int cv) {
@@ -205,6 +208,9 @@ SparseMatrix<DT>::SparseMatrix(int n, int m, int cv) {
 	myMatrix = new vector<SparseRow<DT> >();
 }
 
+/*
+ * Sparse matrix destructor.
+ */
 template <class DT>
 SparseMatrix<DT>::~SparseMatrix() {
 	delete myMatrix;
@@ -276,16 +282,25 @@ int SparseMatrix<DT>::getRows() {
 	return noRows;
 }
 
+/*
+ * Returns the column of the element at index i of myMatrix.
+ */
 template <class DT>
 int SparseMatrix<DT>::getCol(int i) {
 	return myMatrix->at(i).getCol();
 }
 
+/*
+ * Returns the row of the element at index i of myMatrix.
+ */
 template <class DT>
 int SparseMatrix<DT>::getRow(int i) {
 	return myMatrix->at(i).getRow();
 }
 
+/*
+ * Returns the value of the element at index i of myMatrix.
+ */
 template <class DT>
 DT SparseMatrix<DT>::getVal(int i) {
 	return myMatrix->at(i).getValue();
@@ -305,7 +320,7 @@ DT SparseMatrix<DT>::valueOf(int r, int c) {
 /*
  * Goes through the matrix from 0-size and tries to add val to an element [r,c].
  *
- * Returns true if added succesfully, false it the element isn't found.
+ * Returns true if added succesfully, false if [r,c] isn't found.
  */
 template <class DT>
 bool SparseMatrix<DT>::add(int r, int c, DT val) {
@@ -317,16 +332,25 @@ bool SparseMatrix<DT>::add(int r, int c, DT val) {
 	return false;
 }
 
+/*
+ * Returns myMatrix
+ */
 template <class DT>
 vector<SparseRow<DT> >* SparseMatrix<DT>::getMatrix() {
 	return myMatrix;
 }
 
+/*
+ * Sets the noNonSpareValues to the given argument size.
+ */
 template <class DT>
 void SparseMatrix<DT>::setNoNSV(int size) {
 	noNonSparseValues = size;
 }
 
+/*
+ * Sets the sparse row at index pos in myMatrix to the given r, c, and v.
+ */
 template <class DT>
 void SparseMatrix<DT>::setSparseRow(int pos, int r, int c, DT& v) {
 	myMatrix->at(pos) = SparseRow<DT>(r, c, v);
